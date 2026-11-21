@@ -1,4 +1,4 @@
-const C = 'tdp-v2';
+const C = 'tdp-v3';
 const A = ['./', 'index.html', 'frases.json', 'manifest.json', 'icon-192.png', 'icon-512.png',
   ...['01-despejado','02-parcialmente-nublado','03-nublado','04-lluvia','05-tormenta','06-nieve','07-viento','08-niebla','09-calor','10-noche-despejada','11-noche-nublada','12-granizo'].map(n => 'iconos/' + n + '.png')];
 
@@ -15,4 +15,17 @@ self.addEventListener('fetch', e => {
       return r;
     }).catch(() => caches.match(e.request))
   );
+});
+
+self.addEventListener('push', e => {
+  let d = { t: 'Tiempo de perros', c: '' };
+  try { d = e.data.json(); } catch (x) {}
+  e.waitUntil(self.registration.showNotification(d.t, { body: d.c, icon: 'icon-192.png', tag: d.tag || 'tdp', renotify: true }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then(l => {
+    for (const c of l) if ('focus' in c) return c.focus();
+    return clients.openWindow('./');
+  }));
 });
