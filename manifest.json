@@ -1,0 +1,16 @@
+{
+  "name": "Tiempo de perros",
+  "short_name": "Tiempo de perros",
+  "description": "El tiempo con humor manchego para dueños de perros",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#4db6ea",
+  "theme_color": "#4db6ea",
+  "lang": "es",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

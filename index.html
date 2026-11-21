@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4db6ea">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Tiempo de perros</title>
+<style>
+:root{--a:#4db6ea;--b:#8fd3f4;--txt:#fff;--card:rgba(255,255,255,.2);--ink:#14283f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;overscroll-behavior:none}
+body{font-family:ui-rounded,"SF Pro Rounded","Nunito",system-ui,sans-serif;color:var(--txt);
+ background:linear-gradient(170deg,var(--a),var(--b));background-attachment:fixed;
+ padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);user-select:none;-webkit-user-select:none}
+body.sol{--a:#2f9fe6;--b:#ffd98a}body.parc{--a:#4aa8e0;--b:#bfe3f7}
+body.nub{--a:#6f8296;--b:#b6c3cf}body.lluvia{--a:#41576e;--b:#7e95aa}
+body.tormenta{--a:#262f45;--b:#5a6683}body.nieve{--a:#7aa6cf;--b:#e6f1fa}
+body.viento{--a:#4c9cc4;--b:#c9e4ee}body.niebla{--a:#8a99a6;--b:#d3dadf}
+body.calor{--a:#e9822f;--b:#ffd36e}body.noche{--a:#0f1b3d;--b:#2b3f78}
+body.nochenub{--a:#1a2340;--b:#475378}body.granizo{--a:#3d5169;--b:#9db3c6}
+main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
+.barra{display:flex;gap:8px}
+.barra input{flex:1;min-width:0;border:0;border-radius:14px;padding:12px 14px;font:inherit;background:var(--card);color:#fff;outline:none}
+.barra input::placeholder{color:rgba(255,255,255,.75)}
+.barra button{border:0;border-radius:14px;padding:0 14px;font:inherit;background:var(--card);color:#fff;font-size:1.2rem}
+.res{margin:8px 0 0;padding:0;list-style:none;background:rgba(20,40,63,.85);border-radius:14px;overflow:hidden}
+.res li{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.12)}
+.res li:last-child{border:0}
+.lugar{text-align:center;margin:18px 0 0;font-size:1.05rem;opacity:.95}
+.heroe{text-align:center}
+.heroe img{width:min(64vw,260px);height:auto;border-radius:32px;background:#fff;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-top:10px}
+.temp{font-size:4.6rem;font-weight:800;line-height:1;margin:12px 0 0;letter-spacing:-2px}
+.sens{opacity:.9;margin:4px 0 0}
+.card{background:var(--card);border-radius:20px;padding:14px 16px;margin-top:14px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.frase{font-size:1.1rem;line-height:1.35;text-align:center}
+.semaforo{display:flex;gap:14px;align-items:center}
+.luz{width:44px;height:44px;border-radius:50%;flex:none;box-shadow:0 0 0 4px rgba(255,255,255,.4)}
+.l0{background:#3ccf6a}.l1{background:#ffc83d}.l2{background:#ef4d4d}
+.semaforo b{display:block;font-size:1.05rem}.semaforo span{opacity:.92;font-size:.93rem;line-height:1.3}
+.datos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.datos div{font-size:.8rem;opacity:.95}.datos strong{display:block;font-size:1.1rem}
+.titulo{font-weight:700;margin:0 0 8px}
+.horas{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.horas::-webkit-scrollbar{display:none}
+.h{flex:none;width:62px;text-align:center;font-size:.85rem}
+.h img,.d img{width:44px;height:44px;border-radius:12px;background:#fff;object-fit:cover}
+.h strong{display:block;font-size:1rem}.h small{opacity:.9}
+.d{display:flex;align-items:center;gap:12px;padding:6px 0}
+.d .n{flex:1;text-transform:capitalize}.d small{opacity:.9;display:block}
+.d .t{font-weight:700;white-space:nowrap}
+.aviso{text-align:center;font-size:.85rem;margin-top:12px;opacity:.9}
+</style>
+</head>
+<body>
+<main>
+ <div class="barra">
+  <input id="q" type="search" placeholder="Buscar un sitio…" autocomplete="off">
+  <button id="gps" aria-label="Usar mi ubicación">📍</button>
+ </div>
+ <ul class="res" id="res" hidden></ul>
+ <div id="app"><p class="aviso">Cargando el tiempo…</p></div>
+</main>
+<script src="frases.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const IC={sol:'01-despejado',parc:'02-parcialmente-nublado',nub:'03-nublado',lluvia:'04-lluvia',tormenta:'05-tormenta',nieve:'06-nieve',viento:'07-viento',niebla:'08-niebla',calor:'09-calor',noche:'10-noche-despejada',nochenub:'11-noche-nublada',granizo:'12-granizo'};
+const img=k=>`iconos/${IC[k]}.png`;
+const POR_DEFECTO={nombre:'Campo de Criptana',lat:39.4034,lon:-3.1245};
+let lugar=JSON.parse(localStorage.getItem('lugar')||'null')||POR_DEFECTO;
+
+function situ(c,dia,t,w){
+ if(c===96||c===99)return'granizo';
+ if(c>=95)return'tormenta';
+ if([71,73,75,77,85,86].includes(c))return'nieve';
+ if((c>=51&&c<=67)||(c>=80&&c<=82))return'lluvia';
+ if(c===45||c===48)return'niebla';
+ if(t>=35)return'calor';
+ if(w>=40)return'viento';
+ if(c<=1)return dia?'sol':'noche';
+ if(c===2)return dia?'parc':'nochenub';
+ return dia?'nub':'nochenub';
+}
+function nivel(t,p,w,c){
+ if(c>=95||t>=35||t<=-2||w>=50)return 2;
+ if(p>=50||t>=30||t<=3||w>=30||(c>=51&&c<=67)||(c>=80&&c<=82)||(c>=71&&c<=77))return 1;
+ return 0;
+}
+const TXT=[['Luz verde','Buen momento para pasear sin agobios.'],['Ojo con el paseo','Se puede salir, pero con precaución y paseo más corto.'],['Mejor en casa un rato','Hoy el paseo, justito y solo si hace falta.']];
+
+function fraseDelDia(k){
+ const d=Math.floor(Date.now()/864e5);
+ if(d%2===0){const f=FRASES[k]||FRASES.nub;return f[d%f.length];}
+ return REFRANES[d%REFRANES.length];
+}
+async function cargar(){
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${lugar.lat}&longitude=${lugar.lon}`+
+ `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`+
+ `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,is_day`+
+ `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset`+
+ `&timezone=auto&forecast_days=7`;
+ let datos,sinRed=false;
+ try{const r=await fetch(u);if(!r.ok)throw 0;datos=await r.json();localStorage.setItem('ultimo',JSON.stringify({lugar,datos}));}
+ catch(e){const g=JSON.parse(localStorage.getItem('ultimo')||'null');if(!g){$('#app').innerHTML='<p class="aviso">No hay conexión y aún no hay datos guardados.</p>';return;}datos=g.datos;lugar=g.lugar;sinRed=true;}
+ pintar(datos,sinRed);
+}
+function pintar(d,sinRed){
+ const c=d.current,h=d.hourly,dy=d.daily;
+ const t=Math.round(c.temperature_2m),w=Math.round(c.wind_speed_10m);
+ const k=situ(c.weather_code,c.is_day,t,w);
+ document.body.className=k;
+ const i0=Math.max(0,h.time.findIndex(x=>x>=c.time.slice(0,13)));
+ const pAhora=h.precipitation_probability[i0]??0;
+ const niv=nivel(t,pAhora,w,c.weather_code);
+ let mejor=null,mejorP=1e9;
+ for(let i=i0;i<Math.min(i0+24,h.time.length);i++){
+  const hr=+h.time[i].slice(11,13);if(hr<7||hr>22)continue;
+  const p=nivel(h.temperature_2m[i],h.precipitation_probability[i]||0,h.wind_speed_10m[i],h.weather_code[i])*100+Math.abs(h.temperature_2m[i]-18);
+  if(p<mejorP){mejorP=p;mejor=h.time[i].slice(11,16);}
+ }
+ let extra=`Mejor hora para pasear: <b>${mejor||'—'}</b>.`;
+ if(t>=26)extra+=' Asfalto caliente: si no aguantas la mano 5 segundos, sus patas tampoco.';
+ let horas='';
+ for(let i=i0;i<Math.min(i0+24,h.time.length);i++){
+  const tt=Math.round(h.temperature_2m[i]);
+  const kk=situ(h.weather_code[i],h.is_day[i],tt,h.wind_speed_10m[i]);
+  horas+=`<div class="h">${h.time[i].slice(11,13)}h<img src="${img(kk)}" alt=""><strong>${tt}°</strong><small>💧${h.precipitation_probability[i]??0}%</small></div>`;
+ }
+ let dias='';
+ dy.time.forEach((f,i)=>{
+  const kk=situ(dy.weather_code[i],1,dy.temperature_2m_max[i],0);
+  const nom=i===0?'Hoy':i===1?'Mañana':new Date(f+'T12:00').toLocaleDateString('es-ES',{weekday:'long'});
+  dias+=`<div class="d"><img src="${img(kk)}" alt=""><div class="n">${nom}<small>💧${dy.precipitation_probability_max[i]??0}%</small></div><div class="t">${Math.round(dy.temperature_2m_min[i])}° / ${Math.round(dy.temperature_2m_max[i])}°</div></div>`;
+ });
+ $('#app').innerHTML=`
+ <p class="lugar">${lugar.nombre}</p>
+ <div class="heroe"><img src="${img(k)}" alt=""><p class="temp">${t}°</p><p class="sens">Sensación ${Math.round(c.apparent_temperature)}°</p></div>
+ <div class="card frase">${fraseDelDia(k)}</div>
+ <div class="card semaforo"><div class="luz l${niv}"></div><div><b>${TXT[niv][0]}</b><span>${TXT[niv][1]}<br>${extra}</span></div></div>
+ <div class="card datos"><div><strong>${w} km/h</strong>Viento</div><div><strong>${c.relative_humidity_2m}%</strong>Humedad</div><div><strong>${dy.sunset[0].slice(11,16)}</strong>Atardecer</div></div>
+ <div class="card"><p class="titulo">Próximas horas</p><div class="horas">${horas}</div></div>
+ <div class="card"><p class="titulo">Próximos días</p>${dias}</div>
+ ${sinRed?'<p class="aviso">Sin conexión: mostrando los últimos datos guardados.</p>':''}`;
+}
+function elegir(n,la,lo){lugar={nombre:n,lat:la,lon:lo};localStorage.setItem('lugar',JSON.stringify(lugar));$('#res').hidden=true;$('#q').value='';cargar();}
+let temporizador;
+$('#q').addEventListener('input',e=>{
+ clearTimeout(temporizador);const v=e.target.value.trim();
+ if(v.length<2){$('#res').hidden=true;return;}
+ temporizador=setTimeout(async()=>{
+  try{
+   const r=await(await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(v)}&count=5&language=es`)).json();
+   const l=$('#res');l.innerHTML='';
+   (r.results||[]).forEach(x=>{const li=document.createElement('li');
+    li.textContent=[x.name,x.admin1,x.country].filter(Boolean).join(', ');
+    li.onclick=()=>elegir(x.name,x.latitude,x.longitude);l.appendChild(li);});
+   if(!l.children.length)l.innerHTML='<li>No encuentro ese sitio</li>';
+   l.hidden=false;
+  }catch(e){}
+ },350);
+});
+$('#gps').onclick=()=>{
+ if(!navigator.geolocation)return alert('Tu móvil no permite usar la ubicación.');
+ navigator.geolocation.getCurrentPosition(p=>elegir('Mi ubicación',p.coords.latitude,p.coords.longitude),
+  ()=>alert('No he podido obtener tu ubicación. Revisa que el permiso esté activado.'),{enableHighAccuracy:false,timeout:10000});
+};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+cargar();
+setInterval(cargar,15*60*1000);
+</script>
+</body>
+</html>
