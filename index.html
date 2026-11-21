@@ -65,6 +65,19 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
 #avisos input{width:20px;height:20px;accent-color:#ffd24a}
 .btnavisos{width:100%;border:0;border-radius:14px;padding:12px;font:inherit;font-weight:700;background:#fff;color:#14283f;margin-top:8px}
 .enlace{background:none;border:0;color:#fff;font:inherit;text-decoration:underline;margin-top:8px;padding:6px;width:100%;opacity:.9}
+.d{cursor:pointer}.ch{font-size:1.5rem;opacity:.8;margin-left:2px}
+#dia{position:fixed;inset:0;z-index:40;background:rgba(10,20,35,.55);display:flex;align-items:flex-end;justify-content:center}
+#dia[hidden]{display:none}
+.hoja{width:100%;max-width:480px;max-height:90vh;overflow:auto;background:linear-gradient(170deg,var(--a),var(--b));border-radius:24px 24px 0 0;padding:14px 16px calc(16px + env(safe-area-inset-bottom));color:#fff}
+.cabd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.cabd b{flex:1;text-align:center;text-transform:capitalize}
+.cabd button{border:0;border-radius:12px;padding:8px 14px;font:inherit;background:rgba(255,255,255,.25);color:#fff}
+.cabd button:disabled{opacity:.3}
+.dhero{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+.dhero img{width:84px;height:84px;border-radius:20px;background:#fff;object-fit:cover;flex:none}
+.dhero strong{display:block;font-size:1.7rem}.dhero span{font-size:.95rem;line-height:1.3;opacity:.95}
+.fila{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.2)}
+.fila b{text-align:right}
 </style>
 </head>
 <body>
@@ -85,6 +98,11 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
   <p class="aviso" id="estadoAvisos"></p>
  </div>
 </main>
+<div id="dia" hidden><div class="hoja">
+  <div class="cabd"><button id="dPrev" aria-label="Día anterior">◀</button><b id="dTit"></b><button id="dNext" aria-label="Día siguiente">▶</button></div>
+  <div id="dCuerpo"></div>
+  <button id="dCerrar" class="btnavisos">Cerrar</button>
+ </div></div>
 <div id="radar" hidden>
  <div class="cab"><button id="cerrar">✕ Cerrar</button><b id="hora"></b><button id="pausa">⏸</button></div>
  <div id="mapa"></div>
@@ -130,15 +148,16 @@ function fraseDelDia(k){
 async function cargar(){
  const u=`https://api.open-meteo.com/v1/forecast?latitude=${lugar.lat}&longitude=${lugar.lon}`+
  `&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day`+
- `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,is_day`+
- `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset`+
+ `&hourly=temperature_2m,precipitation_probability,weather_code,wind_speed_10m,is_day,relative_humidity_2m,precipitation`+
+ `&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,apparent_temperature_max,apparent_temperature_min,uv_index_max`+
  `&timezone=auto&forecast_days=7`;
  let datos,sinRed=false;
  try{const r=await fetch(u);if(!r.ok)throw 0;datos=await r.json();localStorage.setItem('ultimo',JSON.stringify({lugar,datos}));}
  catch(e){const g=JSON.parse(localStorage.getItem('ultimo')||'null');if(!g){$('#app').innerHTML='<p class="aviso">No hay conexión y aún no hay datos guardados.</p>';return;}datos=g.datos;lugar=g.lugar;sinRed=true;}
  pintar(datos,sinRed);
 }
-function pintar(d,sinRed){
+let D=null;
+function pintar(d,sinRed){D=d;
  const c=d.current,h=d.hourly,dy=d.daily;
  const t=Math.round(c.temperature_2m),w=Math.round(c.wind_speed_10m);
  const k=situ(c.weather_code,c.is_day,t,w);
@@ -164,7 +183,7 @@ function pintar(d,sinRed){
  dy.time.forEach((f,i)=>{
   const kk=situ(dy.weather_code[i],1,dy.temperature_2m_max[i],0);
   const nom=i===0?'Hoy':i===1?'Mañana':new Date(f+'T12:00').toLocaleDateString('es-ES',{weekday:'long'});
-  dias+=`<div class="d"><img src="${img(kk)}" alt=""><div class="n">${nom}<small>💧${dy.precipitation_probability_max[i]??0}%</small></div><div class="t">${Math.round(dy.temperature_2m_min[i])}° / ${Math.round(dy.temperature_2m_max[i])}°</div></div>`;
+  dias+=`<div class="d" data-i="${i}"><img src="${img(kk)}" alt=""><div class="n">${nom}<small>💧${dy.precipitation_probability_max[i]??0}%</small></div><div class="t">${Math.round(dy.temperature_2m_min[i])}° / ${Math.round(dy.temperature_2m_max[i])}°</div><span class="ch">›</span></div>`;
  });
  $('#app').innerHTML=`
  <p class="lugar">${lugar.nombre}</p>
@@ -174,7 +193,7 @@ function pintar(d,sinRed){
  <button class="card btnradar" onclick="abrirRadar()">🌧️ Ver radar de lluvia</button>
  <div class="card datos"><div><strong>${w} km/h</strong>Viento</div><div><strong>${c.relative_humidity_2m}%</strong>Humedad</div><div><strong>${dy.sunset[0].slice(11,16)}</strong>Atardecer</div></div>
  <div class="card"><p class="titulo">Próximas horas</p><div class="horas">${horas}</div></div>
- <div class="card"><p class="titulo">Próximos días</p>${dias}</div>
+ <div class="card"><p class="titulo">Próximos días <small style="font-weight:400;opacity:.85">· toca uno para ver el detalle</small></p>${dias}</div>
  ${sinRed?'<p class="aviso">Sin conexión: mostrando los últimos datos guardados.</p>':''}`;
 }
 function elegir(n,la,lo){lugar={nombre:n,lat:la,lon:lo};localStorage.setItem('lugar',JSON.stringify(lugar));$('#res').hidden=true;$('#q').value='';cargar();if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}
@@ -194,10 +213,59 @@ $('#q').addEventListener('input',e=>{
   }catch(e){}
  },350);
 });
+let diaAct=0;
+function abrirDia(i){
+ if(!D||!D.hourly.relative_humidity_2m||!D.daily.uv_index_max)return;
+ diaAct=i;
+ const d=D.daily,h=D.hourly,r=n=>Math.round(n),base=i*24,hs=[];
+ for(let k=8;k<=23;k++)hs.push(base+k);
+ const v=hs.map(x=>h.wind_speed_10m[x]),hu=hs.map(x=>h.relative_humidity_2m[x]);
+ const llu=hs.filter(x=>h.precipitation[x]>=0.2||(h.precipitation_probability[x]??0)>=50).map(x=>x%24);
+ const p=d.precipitation_probability_max[i]??0;
+ let ll;
+ if(p<20&&!llu.length)ll='no se espera';
+ else if(!llu.length)ll=p+'%, poco probable';
+ else if(llu.length===1)ll=p+'%, sobre las '+llu[0]+'h';
+ else ll=p+'%, entre las '+llu[0]+'h y las '+(llu[llu.length-1]+1)+'h';
+ const tmax=r(d.temperature_2m_max[i]),vmax=r(Math.max(...v));
+ const k=situ(d.weather_code[i],1,tmax,vmax);
+ const fr=FR?(FR.frases[k]||FR.frases.nub):[''];
+ const uv=d.uv_index_max[i],uvp=uv<3?'bajo':uv<6?'moderado':uv<8?'alto':'muy alto';
+ let hor='';
+ [6,9,12,15,18,21].forEach(k2=>{const x=base+k2,tt=Math.round(h.temperature_2m[x]);
+  hor+=`<div class="h">${k2}h<img src="${img(situ(h.weather_code[x],h.is_day[x],tt,h.wind_speed_10m[x]))}" alt=""><strong>${tt}°</strong><small>💧${h.precipitation_probability[x]??0}%</small></div>`;});
+ const nom=i===0?'Hoy':i===1?'Mañana':'';
+ const fecha=new Date(d.time[i]+'T12:00').toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+ $('#dTit').textContent=nom?nom+' · '+fecha:fecha;
+ $('#dCuerpo').innerHTML=`<div class="dhero"><img src="${img(k)}" alt=""><div><strong>${r(d.temperature_2m_min[i])}° / ${tmax}°</strong><span>${fr[i%fr.length]}</span></div></div>
+ <div class="fila"><span>🌡️ Temperatura</span><b>${r(d.temperature_2m_min[i])}° a ${tmax}°</b></div>
+ <div class="fila"><span>🧥 Sensación</span><b>${r(d.apparent_temperature_min[i])}° a ${r(d.apparent_temperature_max[i])}°</b></div>
+ <div class="fila"><span>💨 Viento</span><b>${r(Math.min(...v))} a ${vmax} km/h</b></div>
+ <div class="fila"><span>💧 Lluvia</span><b>${ll}</b></div>
+ <div class="fila"><span>💦 Humedad</span><b>${r(Math.min(...hu))}% a ${r(Math.max(...hu))}%</b></div>
+ <div class="fila"><span>☀️ Índice UV</span><b>${Math.round(uv)} (${uvp})</b></div>
+ <div class="fila"><span>🌅 Sol</span><b>${d.sunrise[i].slice(11,16)} a ${d.sunset[i].slice(11,16)}</b></div>
+ <p class="titulo" style="margin-top:14px">Por horas</p><div class="horas">${hor}</div>`;
+ $('#dPrev').disabled=i===0;$('#dNext').disabled=i>=d.time.length-1;
+ $('#dia').hidden=false;
+}
+$('#app').addEventListener('click',e=>{const f=e.target.closest('.d');if(f)abrirDia(+f.dataset.i);});
+$('#dPrev').onclick=()=>abrirDia(diaAct-1);
+$('#dNext').onclick=()=>abrirDia(diaAct+1);
+$('#dCerrar').onclick=()=>{$('#dia').hidden=true;};
+$('#dia').addEventListener('click',e=>{if(e.target.id==='dia')$('#dia').hidden=true;});
 $('#gps').onclick=()=>{
- if(!navigator.geolocation)return alert('Tu móvil no permite usar la ubicación.');
- navigator.geolocation.getCurrentPosition(p=>elegir('Mi ubicación',p.coords.latitude,p.coords.longitude),
-  ()=>alert('No he podido obtener tu ubicación. Revisa que el permiso esté activado.'),{enableHighAccuracy:false,timeout:10000});
+ if(!navigator.geolocation)return alert('Este dispositivo no permite usar la ubicación.');
+ const b=$('#gps');b.textContent='⏳';
+ navigator.geolocation.getCurrentPosition(async p=>{
+  b.textContent='📍';
+  let n='Mi ubicación';
+  try{const j=await(await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&localityLanguage=es`)).json();n=j.city||j.locality||n;}catch(e){}
+  elegir(n,p.coords.latitude,p.coords.longitude);
+ },er=>{
+  b.textContent='📍';
+  alert(er.code===1?'El permiso de ubicación está bloqueado. Pulsa el candado de la barra de direcciones (o los ajustes de la web), permite la ubicación y vuelve a intentarlo.':er.code===2?'El dispositivo no encuentra tu posición. Comprueba que la ubicación del móvil o del ordenador esté activada.':'Tarda demasiado en encontrar tu posición. Inténtalo de nuevo.');
+ },{enableHighAccuracy:false,timeout:15000,maximumAge:600000});
 };
 
 let mapa,capas=[],tiempos=[],idx=0,anim=null,marca=null;
