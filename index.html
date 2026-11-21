@@ -94,6 +94,7 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
   <label><input type="checkbox" id="pManana"> Previsión a las 8:00</label>
   <label><input type="checkbox" id="pNoche"> Previsión de mañana a las 21:00</label>
   <button id="bAvisos" class="btnavisos">Activar avisos</button>
+  <button id="bPrueba" class="enlace" hidden>Enviar aviso de prueba</button>
   <button id="bBaja" class="enlace" hidden>Desactivar avisos</button>
   <p class="aviso" id="estadoAvisos"></p>
  </div>
@@ -309,8 +310,9 @@ function pintarAvisos(){
  const pr=JSON.parse(localStorage.getItem('prefs')||'{"lluvia":true,"manana":true,"noche":true}');
  $('#pLluvia').checked=pr.lluvia;$('#pManana').checked=pr.manana;$('#pNoche').checked=pr.noche;
  const on=localStorage.getItem('avisosOn')==='1';
- $('#bAvisos').textContent=on?'Guardar cambios':'Activar avisos';
- $('#bBaja').hidden=!on;
+ $('#bAvisos').hidden=on;
+ $('#bBaja').hidden=!on;$('#bPrueba').hidden=!on;
+ if(on&&!$('#estadoAvisos').textContent)$('#estadoAvisos').textContent='✅ Avisos activados';
 }
 async function activarAvisos(silencioso){
  const e=$('#estadoAvisos');
@@ -324,7 +326,11 @@ async function activarAvisos(silencioso){
   localStorage.setItem('prefs',JSON.stringify(pr));
   const r=await post('/suscribir',{sub:sub.toJSON(),lat:lugar.lat,lon:lugar.lon,nombre:lugar.nombre,prefs:pr,hola:!silencioso});
   const j=await r.json();
-  if(j.ok){localStorage.setItem('avisosOn','1');e.textContent='Avisos guardados para '+lugar.nombre+'.';pintarAvisos();}
+  if(j.ok){localStorage.setItem('avisosOn','1');
+   if(silencioso)e.textContent='✅ Cambios guardados para '+lugar.nombre+'.';
+   else if(j.envio>=200&&j.envio<300)e.textContent='✅ Avisos activados. Te acabo de mandar un aviso de prueba.';
+   else e.textContent='Avisos guardados, pero el aviso de prueba ha fallado (código '+j.envio+'). '+(j.det||'');
+   pintarAvisos();}
   else e.textContent='No he podido activarlos ('+(j.error||r.status)+').';
  }catch(err){e.textContent='Algo ha fallado al activar los avisos. Inténtalo de nuevo.';}
 }
@@ -337,6 +343,7 @@ async function desactivarAvisos(){
 }
 $('#bAvisos').onclick=()=>activarAvisos(false);
 $('#bBaja').onclick=desactivarAvisos;
+$('#bPrueba').onclick=()=>activarAvisos(false);
 ['#pLluvia','#pManana','#pNoche'].forEach(i=>$(i).addEventListener('change',()=>{if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}));
 pintarAvisos();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
