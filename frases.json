@@ -1,0 +1,69 @@
+{
+ "frases": {
+  "sol": [
+   "Día de sol y gafas: ¡hoy el paseo es obligatorio!",
+   "¡Hoy no te escaqueas!"
+  ],
+  "parc": [
+   "Nubes y claros: ¡blanco y negro, como mis colores!",
+   "Un poco de sol, un poco de nube… ¡paseo de ida y vuelta!"
+  ],
+  "nub": [
+   "Cielo gris, pero… ¡tengo que hacer pis!",
+   "Día de manta y sofá, pero cuando volvamos, ¡que tengo ganas de juerga!"
+  ],
+  "lluvia": [
+   "Llueve, no me gusta, pero menos te va a gustar lo que va a pasar si no me sacas.",
+   "Hoy toca paraguas y toalla para las patas."
+  ],
+  "tormenta": [
+   "Tormenta a la vista: ¡yo me quedo debajo de la manta!",
+   "Truenos en La Mancha. Tengo miedo, pero también tengo pis."
+  ],
+  "nieve": [
+   "¡Nieve! Bufanda puesta y a pisar fuerte.",
+   "Frío manchego del bueno: abrígate tú también."
+  ],
+  "viento": [
+   "Hoy hasta los gigantes de Don Quijote se llevan un susto.",
+   "Viento de los que despeinan, sujeta bien la correa, ¡que salgo volando!"
+  ],
+  "niebla": [
+   "Hoy paseamos al tacto. ¡Vaya nieblazo!",
+   "No se ve ni el molino, pero el olfato manda."
+  ],
+  "calor": [
+   "Calor de los que ablandan el asfalto: paseo a primera o última hora.",
+   "Lengua fuera y sombra: hoy se pasea cuando baje el sol."
+  ],
+  "noche": [
+   "Noche despejada: último paseo con estrellas.",
+   "¡Mira cuántas estrellas!"
+  ],
+  "nochenub": [
+   "Noche de nubes: ¡a sobar!",
+   "No se ven ni la luna ni las estrellas, ¡hora de descansar patas!"
+  ],
+  "granizo": [
+   "Granizo: hoy el paseo te lo das tú.",
+   "Bolitas de hielo desde el cielo. ¡Madre mía, qué miedo!"
+  ]
+ },
+ "refranes": [
+  "En abril, aguas mil.",
+  "Cielo empedrado, suelo mojado.",
+  "Agua de mayo, pan para todo el año.",
+  "Año de nieves, año de bienes.",
+  "Marzo ventoso y abril lluvioso sacan a mayo florido y hermoso.",
+  "Cuando marzo mayea, mayo marcea.",
+  "Hasta el cuarenta de mayo, no te quites el sayo.",
+  "Febrero loco y marzo otro poco.",
+  "Septiembre, o se lleva los puentes o se seca las fuentes.",
+  "Lluvia de San Juan quita vino y no da pan.",
+  "Mayo hortelano, mucha paja y poco grano.",
+  "A mal tiempo, buena cara.",
+  "Después de la tormenta viene la calma.",
+  "Nunca llueve a gusto de todos.",
+  "Quien siembra vientos, recoge tempestades."
+ ]
+}

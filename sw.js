@@ -1,5 +1,5 @@
-const C = 'tdp-v1';
-const A = ['./', 'index.html', 'frases.js', 'manifest.json', 'icon-192.png', 'icon-512.png',
+const C = 'tdp-v2';
+const A = ['./', 'index.html', 'frases.json', 'manifest.json', 'icon-192.png', 'icon-512.png',
   ...['01-despejado','02-parcialmente-nublado','03-nublado','04-lluvia','05-tormenta','06-nieve','07-viento','08-niebla','09-calor','10-noche-despejada','11-noche-nublada','12-granizo'].map(n => 'iconos/' + n + '.png')];
 
 self.addEventListener('install', e => e.waitUntil(caches.open(C).then(c => c.addAll(A))));
