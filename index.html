@@ -52,7 +52,7 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
 .d .n{flex:1;text-transform:capitalize}.d small{opacity:.9;display:block}
 .d .t{font-weight:700;white-space:nowrap}
 .aviso{text-align:center;font-size:.85rem;margin-top:12px;opacity:.9}
-.btnradar{display:block;width:100%;border:0;color:#fff;font:inherit;font-weight:700;font-size:1.05rem;text-align:center}
+.btnradar{display:block;width:100%;border:0;color:#14283f;background:linear-gradient(135deg,#ffd24a,#ff9f1c);box-shadow:0 6px 16px rgba(0,0,0,.22);padding:16px;font:inherit;font-weight:700;font-size:1.05rem;text-align:center}
 #radar{position:fixed;inset:0;z-index:50;background:#14283f;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 #radar[hidden]{display:none}
 #radar .cab{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#14283f;color:#fff}
@@ -61,6 +61,10 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
 #mapa{flex:1;background:#cfd8e0}
 #radar .pie{padding:8px 12px calc(8px + env(safe-area-inset-bottom));font-size:.8rem;text-align:center;color:#cfe3f3;background:#14283f}
 #radar .pie a{color:#fff}
+#avisos label{display:flex;gap:10px;align-items:center;margin:8px 0;font-size:.95rem}
+#avisos input{width:20px;height:20px;accent-color:#ffd24a}
+.btnavisos{width:100%;border:0;border-radius:14px;padding:12px;font:inherit;font-weight:700;background:#fff;color:#14283f;margin-top:8px}
+.enlace{background:none;border:0;color:#fff;font:inherit;text-decoration:underline;margin-top:8px;padding:6px;width:100%;opacity:.9}
 </style>
 </head>
 <body>
@@ -71,13 +75,21 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
  </div>
  <ul class="res" id="res" hidden></ul>
  <div id="app"><p class="aviso">Cargando el tiempo…</p></div>
+ <div class="card" id="avisos">
+  <p class="titulo">🔔 Avisos</p>
+  <label><input type="checkbox" id="pLluvia"> Aviso de lluvia próxima</label>
+  <label><input type="checkbox" id="pManana"> Previsión a las 8:00</label>
+  <label><input type="checkbox" id="pNoche"> Previsión de mañana a las 21:00</label>
+  <button id="bAvisos" class="btnavisos">Activar avisos</button>
+  <button id="bBaja" class="enlace" hidden>Desactivar avisos</button>
+  <p class="aviso" id="estadoAvisos"></p>
+ </div>
 </main>
 <div id="radar" hidden>
  <div class="cab"><button id="cerrar">✕ Cerrar</button><b id="hora"></b><button id="pausa">⏸</button></div>
  <div id="mapa"></div>
  <div class="pie">Lluvia de la última hora. Datos de radar: <a href="https://www.rainviewer.com" target="_blank" rel="noopener">Weather data by RainViewer</a></div>
 </div>
-<script src="frases.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const IC={sol:'01-despejado',parc:'02-parcialmente-nublado',nub:'03-nublado',lluvia:'04-lluvia',tormenta:'05-tormenta',nieve:'06-nieve',viento:'07-viento',niebla:'08-niebla',calor:'09-calor',noche:'10-noche-despejada',nochenub:'11-noche-nublada',granizo:'12-granizo'};
@@ -104,10 +116,16 @@ function nivel(t,p,w,c){
 }
 const TXT=[['Luz verde','Buen momento para pasear sin agobios.'],['Ojo con el paseo','Se puede salir, pero con precaución y paseo más corto.'],['Mejor en casa un rato','Hoy el paseo, justito y solo si hace falta.']];
 
+let FR=null;
+async function cargarFrases(){
+ try{FR=await(await fetch('frases.json',{cache:'no-cache'})).json();localStorage.setItem('fr',JSON.stringify(FR));}
+ catch(e){FR=JSON.parse(localStorage.getItem('fr')||'null');}
+}
 function fraseDelDia(k){
+ if(!FR)return '';
  const d=Math.floor(Date.now()/864e5);
- if(d%2===0){const f=FRASES[k]||FRASES.nub;return f[d%f.length];}
- return REFRANES[d%REFRANES.length];
+ if(d%2===0){const f=FR.frases[k]||FR.frases.nub;return f[d%f.length];}
+ return FR.refranes[d%FR.refranes.length];
 }
 async function cargar(){
  const u=`https://api.open-meteo.com/v1/forecast?latitude=${lugar.lat}&longitude=${lugar.lon}`+
@@ -159,7 +177,7 @@ function pintar(d,sinRed){
  <div class="card"><p class="titulo">Próximos días</p>${dias}</div>
  ${sinRed?'<p class="aviso">Sin conexión: mostrando los últimos datos guardados.</p>':''}`;
 }
-function elegir(n,la,lo){lugar={nombre:n,lat:la,lon:lo};localStorage.setItem('lugar',JSON.stringify(lugar));$('#res').hidden=true;$('#q').value='';cargar();}
+function elegir(n,la,lo){lugar={nombre:n,lat:la,lon:lo};localStorage.setItem('lugar',JSON.stringify(lugar));$('#res').hidden=true;$('#q').value='';cargar();if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}
 let temporizador;
 $('#q').addEventListener('input',e=>{
  clearTimeout(temporizador);const v=e.target.value.trim();
@@ -214,8 +232,47 @@ async function abrirRadar(){
 }
 $('#cerrar').onclick=()=>{clearInterval(anim);$('#radar').hidden=true;};
 $('#pausa').onclick=()=>{if(anim){clearInterval(anim);anim=null;$('#pausa').textContent='▶';}else{reproducir();}};
+
+const AVISOS='https://purple-snowflake-951b.landeans75.workers.dev';
+const VAPID='BO8YgnQRJ9kNS9JMbY_z5T1ANVCrL75W508h4TAm3riALUSmjqg6jFHqEy0PQwJ2y5lFjVuqV8xXHBPbN9xAM4k';
+const aKey=s=>Uint8Array.from(atob((s+'='.repeat((4-s.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+const post=(ruta,o)=>fetch(AVISOS+ruta,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});
+function pintarAvisos(){
+ const pr=JSON.parse(localStorage.getItem('prefs')||'{"lluvia":true,"manana":true,"noche":true}');
+ $('#pLluvia').checked=pr.lluvia;$('#pManana').checked=pr.manana;$('#pNoche').checked=pr.noche;
+ const on=localStorage.getItem('avisosOn')==='1';
+ $('#bAvisos').textContent=on?'Guardar cambios':'Activar avisos';
+ $('#bBaja').hidden=!on;
+}
+async function activarAvisos(silencioso){
+ const e=$('#estadoAvisos');
+ if(!('serviceWorker' in navigator)||!('PushManager' in window)){e.textContent='Este navegador no admite avisos. Prueba con Chrome en Android.';return;}
+ try{
+  if(await Notification.requestPermission()!=='granted'){e.textContent='Los avisos están bloqueados. Actívalos en los ajustes del navegador para esta web.';return;}
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:aKey(VAPID)});
+  const pr={lluvia:$('#pLluvia').checked,manana:$('#pManana').checked,noche:$('#pNoche').checked};
+  localStorage.setItem('prefs',JSON.stringify(pr));
+  const r=await post('/suscribir',{sub:sub.toJSON(),lat:lugar.lat,lon:lugar.lon,nombre:lugar.nombre,prefs:pr,hola:!silencioso});
+  const j=await r.json();
+  if(j.ok){localStorage.setItem('avisosOn','1');e.textContent='Avisos guardados para '+lugar.nombre+'.';pintarAvisos();}
+  else e.textContent='No he podido activarlos ('+(j.error||r.status)+').';
+ }catch(err){e.textContent='Algo ha fallado al activar los avisos. Inténtalo de nuevo.';}
+}
+async function desactivarAvisos(){
+ try{
+  const reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();
+  if(sub){await post('/baja',{endpoint:sub.endpoint});await sub.unsubscribe();}
+  localStorage.removeItem('avisosOn');pintarAvisos();$('#estadoAvisos').textContent='Avisos desactivados.';
+ }catch(e){$('#estadoAvisos').textContent='No he podido desactivarlos.';}
+}
+$('#bAvisos').onclick=()=>activarAvisos(false);
+$('#bBaja').onclick=desactivarAvisos;
+['#pLluvia','#pManana','#pNoche'].forEach(i=>$(i).addEventListener('change',()=>{if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}));
+pintarAvisos();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
-cargar();
+cargarFrases().then(cargar);
 setInterval(cargar,15*60*1000);
 </script>
 </body>
