@@ -52,6 +52,15 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
 .d .n{flex:1;text-transform:capitalize}.d small{opacity:.9;display:block}
 .d .t{font-weight:700;white-space:nowrap}
 .aviso{text-align:center;font-size:.85rem;margin-top:12px;opacity:.9}
+.btnradar{display:block;width:100%;border:0;color:#fff;font:inherit;font-weight:700;font-size:1.05rem;text-align:center}
+#radar{position:fixed;inset:0;z-index:50;background:#14283f;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+#radar[hidden]{display:none}
+#radar .cab{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#14283f;color:#fff}
+#radar .cab b{flex:1;text-align:center}
+#radar .cab button{border:0;border-radius:12px;padding:8px 14px;font:inherit;background:rgba(255,255,255,.2);color:#fff}
+#mapa{flex:1;background:#cfd8e0}
+#radar .pie{padding:8px 12px calc(8px + env(safe-area-inset-bottom));font-size:.8rem;text-align:center;color:#cfe3f3;background:#14283f}
+#radar .pie a{color:#fff}
 </style>
 </head>
 <body>
@@ -63,6 +72,11 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
  <ul class="res" id="res" hidden></ul>
  <div id="app"><p class="aviso">Cargando el tiempo…</p></div>
 </main>
+<div id="radar" hidden>
+ <div class="cab"><button id="cerrar">✕ Cerrar</button><b id="hora"></b><button id="pausa">⏸</button></div>
+ <div id="mapa"></div>
+ <div class="pie">Lluvia de la última hora. Datos de radar: <a href="https://www.rainviewer.com" target="_blank" rel="noopener">Weather data by RainViewer</a></div>
+</div>
 <script src="frases.js"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -139,6 +153,7 @@ function pintar(d,sinRed){
  <div class="heroe"><img src="${img(k)}" alt=""><p class="temp">${t}°</p><p class="sens">Sensación ${Math.round(c.apparent_temperature)}°</p></div>
  <div class="card frase">${fraseDelDia(k)}</div>
  <div class="card semaforo"><div class="luz l${niv}"></div><div><b>${TXT[niv][0]}</b><span>${TXT[niv][1]}<br>${extra}</span></div></div>
+ <button class="card btnradar" onclick="abrirRadar()">🌧️ Ver radar de lluvia</button>
  <div class="card datos"><div><strong>${w} km/h</strong>Viento</div><div><strong>${c.relative_humidity_2m}%</strong>Humedad</div><div><strong>${dy.sunset[0].slice(11,16)}</strong>Atardecer</div></div>
  <div class="card"><p class="titulo">Próximas horas</p><div class="horas">${horas}</div></div>
  <div class="card"><p class="titulo">Próximos días</p>${dias}</div>
@@ -166,6 +181,39 @@ $('#gps').onclick=()=>{
  navigator.geolocation.getCurrentPosition(p=>elegir('Mi ubicación',p.coords.latitude,p.coords.longitude),
   ()=>alert('No he podido obtener tu ubicación. Revisa que el permiso esté activado.'),{enableHighAccuracy:false,timeout:10000});
 };
+
+let mapa,capas=[],tiempos=[],idx=0,anim=null,marca=null;
+function cargarLeaflet(){return new Promise((ok,ko)=>{
+ if(window.L)return ok();
+ const c=document.createElement('link');c.rel='stylesheet';c.href='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';document.head.appendChild(c);
+ const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';s.onload=ok;s.onerror=ko;document.head.appendChild(s);});}
+function verFrame(i){
+ idx=i;capas.forEach((l,k)=>l.setOpacity(k===i?0.8:0));
+ $('#hora').textContent='Radar '+new Date(tiempos[i]*1000).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+}
+function reproducir(){clearInterval(anim);$('#pausa').textContent='⏸';anim=setInterval(()=>verFrame((idx+1)%capas.length),700);}
+async function abrirRadar(){
+ $('#radar').hidden=false;$('#hora').textContent='Cargando radar…';
+ try{
+  await cargarLeaflet();
+  const j=await(await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();
+  if(!mapa){
+   mapa=L.map('mapa',{zoomControl:false,attributionControl:true});
+   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:11,attribution:'© OpenStreetMap'}).addTo(mapa);
+  }
+  mapa.setView([lugar.lat,lugar.lon],6);
+  if(marca)mapa.removeLayer(marca);
+  marca=L.circleMarker([lugar.lat,lugar.lon],{radius:7,color:'#fff',weight:3,fillColor:'#ef4d4d',fillOpacity:1}).addTo(mapa);
+  setTimeout(()=>mapa.invalidateSize(),50);
+  capas.forEach(l=>mapa.removeLayer(l));
+  const frames=j.radar.past.slice(-6);
+  tiempos=frames.map(f=>f.time);
+  capas=frames.map(f=>L.tileLayer(`${j.host}${f.path}/256/{z}/{x}/{y}/2/1_1.png`,{opacity:0,maxNativeZoom:7,maxZoom:11,zIndex:5}).addTo(mapa));
+  verFrame(capas.length-1);reproducir();
+ }catch(e){$('#hora').textContent='Sin conexión';}
+}
+$('#cerrar').onclick=()=>{clearInterval(anim);$('#radar').hidden=true;};
+$('#pausa').onclick=()=>{if(anim){clearInterval(anim);anim=null;$('#pausa').textContent='▶';}else{reproducir();}};
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 cargar();
 setInterval(cargar,15*60*1000);
