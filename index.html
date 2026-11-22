@@ -63,6 +63,7 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
 #radar .pie a{color:#fff}
 #avisos label{display:flex;gap:10px;align-items:center;margin:8px 0;font-size:.95rem}
 #avisos input{width:20px;height:20px;accent-color:#ffd24a}
+#avisos input[type=time]{width:auto;height:auto;margin-left:auto;border:0;border-radius:10px;padding:6px 8px;font:inherit;background:rgba(255,255,255,.92);color:#14283f}
 .btnavisos{width:100%;border:0;border-radius:14px;padding:12px;font:inherit;font-weight:700;background:#fff;color:#14283f;margin-top:8px}
 .enlace{background:none;border:0;color:#fff;font:inherit;text-decoration:underline;margin-top:8px;padding:6px;width:100%;opacity:.9}
 .d{cursor:pointer}.ch{font-size:1.5rem;opacity:.8;margin-left:2px}
@@ -91,10 +92,11 @@ main{max-width:480px;margin:0 auto;padding:14px 16px 40px}
  <div class="card" id="avisos">
   <p class="titulo">🔔 Avisos</p>
   <label><input type="checkbox" id="pLluvia"> Aviso de lluvia próxima</label>
-  <label><input type="checkbox" id="pManana"> Previsión a las 8:00</label>
-  <label><input type="checkbox" id="pNoche"> Previsión de mañana a las 21:00</label>
+  <label><input type="checkbox" id="pManana"> Previsión del día <input type="time" id="hManana" value="08:00"></label>
+  <label><input type="checkbox" id="pNoche"> Previsión de mañana <input type="time" id="hNoche" value="21:00"></label>
+  <p class="aviso" style="margin:6px 0 0">Llegan a la hora elegida, con unos minutos de margen.</p>
   <button id="bAvisos" class="btnavisos">Activar avisos</button>
-  <button id="bPrueba" class="enlace" hidden>Enviar aviso de prueba</button>
+  <button id="bPrueba" class="enlace" hidden>Enviar previsión de prueba</button>
   <button id="bBaja" class="enlace" hidden>Desactivar avisos</button>
   <p class="aviso" id="estadoAvisos"></p>
  </div>
@@ -309,12 +311,13 @@ const post=(ruta,o)=>fetch(AVISOS+ruta,{method:'POST',headers:{'Content-Type':'a
 function pintarAvisos(){
  const pr=JSON.parse(localStorage.getItem('prefs')||'{"lluvia":true,"manana":true,"noche":true}');
  $('#pLluvia').checked=pr.lluvia;$('#pManana').checked=pr.manana;$('#pNoche').checked=pr.noche;
+ $('#hManana').value=pr.hm||'08:00';$('#hNoche').value=pr.hn||'21:00';
  const on=localStorage.getItem('avisosOn')==='1';
  $('#bAvisos').hidden=on;
  $('#bBaja').hidden=!on;$('#bPrueba').hidden=!on;
  if(on&&!$('#estadoAvisos').textContent)$('#estadoAvisos').textContent='✅ Avisos activados';
 }
-async function activarAvisos(silencioso){
+async function activarAvisos(silencioso,prueba){
  const e=$('#estadoAvisos');
  if(!('serviceWorker' in navigator)||!('PushManager' in window)){e.textContent='Este navegador no admite avisos. Prueba con Chrome en Android.';return;}
  try{
@@ -322,13 +325,13 @@ async function activarAvisos(silencioso){
   const reg=await navigator.serviceWorker.ready;
   let sub=await reg.pushManager.getSubscription();
   if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:aKey(VAPID)});
-  const pr={lluvia:$('#pLluvia').checked,manana:$('#pManana').checked,noche:$('#pNoche').checked};
+  const pr={lluvia:$('#pLluvia').checked,manana:$('#pManana').checked,noche:$('#pNoche').checked,hm:$('#hManana').value||'08:00',hn:$('#hNoche').value||'21:00'};
   localStorage.setItem('prefs',JSON.stringify(pr));
-  const r=await post('/suscribir',{sub:sub.toJSON(),lat:lugar.lat,lon:lugar.lon,nombre:lugar.nombre,prefs:pr,hola:!silencioso});
+  const r=await post('/suscribir',{sub:sub.toJSON(),lat:lugar.lat,lon:lugar.lon,nombre:lugar.nombre,prefs:pr,hola:!silencioso&&!prueba,prueba:!!prueba});
   const j=await r.json();
   if(j.ok){localStorage.setItem('avisosOn','1');
    if(silencioso)e.textContent='✅ Cambios guardados para '+lugar.nombre+'.';
-   else if(j.envio>=200&&j.envio<300)e.textContent='✅ Avisos activados. Te acabo de mandar un aviso de prueba.';
+   else if(j.envio>=200&&j.envio<300)e.textContent=prueba?'✅ Te acabo de mandar una previsión de prueba, como la de las 21:00.':'✅ Avisos activados. Te acabo de mandar un aviso de prueba.';
    else e.textContent='Avisos guardados, pero el aviso de prueba ha fallado (código '+j.envio+'). '+(j.det||'');
    pintarAvisos();}
   else e.textContent='No he podido activarlos ('+(j.error||r.status)+').';
@@ -343,8 +346,8 @@ async function desactivarAvisos(){
 }
 $('#bAvisos').onclick=()=>activarAvisos(false);
 $('#bBaja').onclick=desactivarAvisos;
-$('#bPrueba').onclick=()=>activarAvisos(false);
-['#pLluvia','#pManana','#pNoche'].forEach(i=>$(i).addEventListener('change',()=>{if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}));
+$('#bPrueba').onclick=()=>activarAvisos(false,true);
+['#pLluvia','#pManana','#pNoche','#hManana','#hNoche'].forEach(i=>$(i).addEventListener('change',()=>{if(localStorage.getItem('avisosOn')==='1')activarAvisos(true);}));
 pintarAvisos();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
 cargarFrases().then(cargar);
